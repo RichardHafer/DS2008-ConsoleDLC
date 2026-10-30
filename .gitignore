@@ -1,0 +1,24 @@
+# Build output and packages
+/obj_dlc/
+/dist/
+*.asi
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+__pycache__/
+
+# Game data: the console packs, the conversion work and the converted archives
+/DLCs/extracted/
+/DLCs/work/
+/DLCs/build/
+/DLCs/private/
+/assets_dlc/
+/tools/gibbed/
+
+# Runtime leftovers
+*.log
+*.dmp
+*.bak*
+*.tmp
