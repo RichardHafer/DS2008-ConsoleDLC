@@ -582,6 +582,10 @@ def stylize(style, target, out_dir):
             ph[..., 0] = paint_hue
             ph[..., 1] = np.maximum(ph[..., 1], paint_sat)
             painted = np.asarray(Image.fromarray(ph.astype(np.uint8), "HSV").convert("RGB"), dtype=np.float64)
+        elif paint_sat < 8:
+            # an uncoloured style stays uncoloured: the dark end of the learned curve carried the green steps of
+            # the console maps' compression, and the Obsidian's gloss showed it green (2026-10-30)
+            painted = np.repeat((painted @ np.array([0.299, 0.587, 0.114]))[..., None], 3, -1)
         normal = own.get(name[:-2] + "_n")
         if wear_colour is not None:
             # worn gold at the plate borders, broken up by noise
@@ -636,6 +640,19 @@ def stylize(style, target, out_dir):
                 # a whole visor glass (levels 1 to 3) shines as bright as the console suit's glow map; tinted to
                 # 55 % it read as switched off next to level 4 (2026-10-30)
                 out[lens] = np.clip(np.asarray(visor, dtype=np.float64) * shade[lens][:, None], 0, 255)
+                from scipy import ndimage
+                ring = ndimage.binary_dilation(lens, iterations=3) & ~lens
+                if ring.any() and target in WHITE_PAINT:
+                    around = np.median(out[ring], axis=0)
+                    if np.abs(around - np.median(out[lens], axis=0)).max() < 70:
+                        # the glow is the colour of the paint around it (Unitology's white on the white level 6
+                        # panels, 2026-10-30): a dark rim and full brightness make it a lit slot in the plate
+                        inner = ndimage.binary_dilation(lens, iterations=1) & ~lens
+                        out[ring] = out[ring] * 0.45
+                        out[inner] = out[inner] * 0.6
+                        peak = np.asarray(visor, dtype=np.float64)
+                        out[lens] = np.clip(peak / max(peak.max(), 1) * 255 * np.clip(shade[lens], 0.85, 1.0)[:, None],
+                                            0, 255)
         result = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).convert("RGBA")
         result.putalpha(src.getchannel("A"))
         result.save(out_dir / (name + ".png"))

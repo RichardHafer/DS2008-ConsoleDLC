@@ -742,6 +742,8 @@ def build_custom(pc, spec, out_root, report):
     tex_ids = {}
     rows = []
     by = {m.key: m for m in members}
+    # an uncoloured style's greys stay grey through the compression (the Obsidian's gloss showed green)
+    neutral = style in ds1_suit_style.STYLES and ds1_suit_style.paint_tone(style)[1] < 8
     for name, image in painted.items():
         header, pixels = by[(name, "tg4h")], by[(name, "tg4d")]
         old = struct.unpack_from("<I", header.data(), 0x14)[0]
@@ -749,7 +751,8 @@ def build_custom(pc, spec, out_root, report):
         tex_ids[old] = tid
         h = bytearray(header.data())
         struct.pack_into("<I", h, 0x14, tid)
-        for m, data in ((header, bytes(h)), (pixels, ds1_texture.write(image, header.data(), pixels.data()))):
+        for m, data in ((header, bytes(h)), (pixels, ds1_texture.write(image, header.data(), pixels.data(),
+                                                                      neutral_greys=neutral))):
             attrs = dict(m.attrs)
             attrs["base_name"] = "%s_%s" % (prefix, name)
             attrs["file_name"] = attrs["file_name"].replace(name, "%s_%s" % (prefix, name))
