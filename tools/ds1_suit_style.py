@@ -327,7 +327,8 @@ def visor_colour(style):
     if style == "scorpion":
         return np.array([255, 32, 16])
     if style == "astronaut":
-        return None
+        # the cyan of the Astronaut suit's visor; without a colour the lenses were painted over (level 4)
+        return np.array([90, 208, 178])
     if style == "military":
         # the blue the Military suit's visor shines in (its texture lenses are pale green)
         return np.array([70, 135, 255])
@@ -632,8 +633,8 @@ def stylize(style, target, out_dir):
                     glass = ndimage.binary_fill_holes(ndimage.binary_closing(lens, iterations=4)) | lens
                     shade[glass & ~lens] = np.median(shade[lens])
                     lens = glass
-                if clean and lens.mean() > 0.02:
-                    shade = shade * 0.55   # a whole visor glass (levels 1 and 2) is tinted, not lit
+                # a whole visor glass (levels 1 to 3) shines as bright as the console suit's glow map; tinted to
+                # 55 % it read as switched off next to level 4 (2026-10-30)
                 out[lens] = np.clip(np.asarray(visor, dtype=np.float64) * shade[lens][:, None], 0, 255)
         result = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).convert("RGBA")
         result.putalpha(src.getchannel("A"))
