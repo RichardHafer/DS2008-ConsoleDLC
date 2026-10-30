@@ -11,33 +11,41 @@ store and in every chapter:
 - levels 1 to 6 of the suit styles (Military 1 to 5, Mining Rig 1) on the stats
   of the level suits
 
-This is an add-on for the Dead Space 2008 Randomizer and needs it installed.
+It runs on its own, or together with the Dead Space 2008 Randomizer.
 
 INSTALL
 
-1. Install the Dead Space 2008 Randomizer first.
-2. Extract this zip into the game folder (the folder with "Dead Space.exe"),
-   keeping the folders:
+1. Open the game folder: in Steam, right-click Dead Space > Manage > Browse local files.
+   It is the folder that holds "Dead Space.exe".
+2. Extract everything from this zip into that folder, keeping the folders:
+     winmm.dll                                   (Ultimate ASI Loader, loads the plugin)
      plugins\DeadSpace2008Randomizer_ConsoleDLC.asi
      ds1_randomizer_assets\dlc\
-3. Start the game. The randomizer's settings window now offers the Console DLC
-   page.
+     DeadSpace2008Randomizer_ConsoleDLC.ini      (settings without the randomizer)
+3. If the folder already has a winmm.dll from the randomizer or another mod, keep
+   that one; it is the same loader.
+4. Start the game. The DLC items are in the store.
 
 SETTINGS
 
-In DeadSpace2008Randomizer.ini or the settings window:
+Without the randomizer: DeadSpace2008Randomizer_ConsoleDLC.ini
   ConsoleDlc=1           DLC items in the store
   SuitSlots=64           suit table size (the game has 30)
-  SuitPaths=0            1 = a seed may play the whole run in one DLC style
+  SoundBankSlots=96      loaded sound banks (the game has 35)
+
+With the randomizer: the same keys in DeadSpace2008Randomizer.ini or its settings
+window, plus SuitPaths=1 for runs played in one DLC style.
 
 UNINSTALL
 
 Delete plugins\DeadSpace2008Randomizer_ConsoleDLC.asi and the folder
-ds1_randomizer_assets\dlc. Keep it installed while you play a save that holds
-DLC items.
+ds1_randomizer_assets\dlc (and winmm.dll if no other mod uses it). Keep it
+installed while you play a save that holds DLC items.
 
 REPORTING A PROBLEM
 
-Send DeadSpace2008Randomizer.log from the game folder with a short description.
+Send DeadSpace2008Randomizer_ConsoleDLC.log from the game folder (or
+DeadSpace2008Randomizer.log when the randomizer is installed) with a short
+description.
 
 Not affiliated with EA or Visceral Games. The DLC content belongs to EA.

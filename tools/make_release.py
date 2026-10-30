@@ -16,9 +16,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "DeadSpace2008Randomizer_ConsoleDLC.asi"
 TABLE = ROOT / "src" / "console_dlc_generated.inc"
-SOURCES = [ROOT / "src" / "dlc" / "ds2008_console_dlc.cpp", TABLE, ROOT / "src" / "console_dlc.inc",
-           ROOT / "src" / "uniform_slots.inc", ROOT / "src" / "suit_paths.inc"]
+SOURCES = [ROOT / "src" / "dlc" / "ds2008_console_dlc.cpp", ROOT / "src" / "dlc" / "standalone.inc", TABLE,
+           ROOT / "src" / "console_dlc.inc", ROOT / "src" / "uniform_slots.inc", ROOT / "src" / "suit_paths.inc"]
 README = ROOT / "release" / "README.txt"
+STANDALONE_INI = ROOT / "release" / "DeadSpace2008Randomizer_ConsoleDLC.ini"
+# The Ultimate ASI Loader, for players without the randomizer (not in the repository)
+LOADER = ROOT / "release" / "winmm.dll"
+LOADER_LICENSE = ROOT / "release" / "UltimateASILoader_LICENSE.txt"
 INSTALL = "ds1_randomizer_assets/dlc/"
 LANGUAGES = ("en", "fr", "es", "ss", "ll")
 
@@ -78,6 +82,8 @@ def main():
     a = p.parse_args()
     if not PLUGIN.is_file():
         raise SystemExit("build the plugin first (build.bat)")
+    if not LOADER.is_file():
+        raise SystemExit("put the Ultimate ASI Loader's winmm.dll into release/")
     newest = max(s.stat().st_mtime for s in SOURCES)
     if PLUGIN.stat().st_mtime < newest:
         raise SystemExit("%s is older than its sources; rebuild it" % PLUGIN.name)
@@ -87,6 +93,9 @@ def main():
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(PLUGIN, "plugins/" + PLUGIN.name)
         z.write(README, "DeadSpace2008Randomizer_ConsoleDLC_README.txt")
+        z.write(STANDALONE_INI, STANDALONE_INI.name)
+        z.write(LOADER, LOADER.name)
+        z.write(LOADER_LICENSE, LOADER_LICENSE.name)
         for path in files:
             z.write(path, INSTALL + path.relative_to(a.assets).as_posix())
         if len(leg_lines) > 1:

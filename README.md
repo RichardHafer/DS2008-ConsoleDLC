@@ -4,18 +4,20 @@
 
 # Dead Space 2008 Randomizer: Console DLC
 
-An add-on for the [Dead Space 2008 Randomizer](https://github.com/RichardHafer/DS2008-Randomizer)
-that brings the console DLC suits and weapons of the original Dead Space (2008)
-to the PC version. Everything sits in the store for free, in every chapter,
-with the stats the packs had on console.
+Brings the console DLC suits and weapons of the original Dead Space (2008) to
+the PC version, on its own or as an add-on for the
+[Dead Space 2008 Randomizer](https://github.com/RichardHafer/DS2008-Randomizer).
+Everything sits in the store for free, in every chapter, with the stats the
+packs had on console.
 
 The PC game still carries the console DLC framework, it just never gets any
 content. This plugin fills it with the packs converted to PC data, and the
 game does the rest itself: store, equipping, weapon models, effects and sounds.
 
-It is a separate plugin and needs the randomizer next to it. The randomizer
-finds it on start, calls it from its own hooks and shows its options in the
-settings window. Without the add-on the randomizer runs as usual.
+On its own you get the plain game plus the DLC. With the randomizer
+installed, the randomizer picks it up on start, drives it from its own hooks
+and shows its options in the settings window, and the suit paths below become
+available.
 
 ## What it does
 
@@ -48,11 +50,15 @@ a Scorpion level 2 plays like the regular level 2 suit.
 |---|---|
 | Suit table | The game holds 30 suits. The plugin raises the table to 64 (`SuitSlots`) so all of the above fit. |
 
-**Off by default, turn on in the INI or in the settings window**
+**With the randomizer only, off by default**
 
 | | |
 |---|---|
 | `SuitPaths` | A seed may play a whole run in one DLC style. Level 1 is worn from New Game, levels 2 to 6 take the store places, prices and unlocks of the retail suits, and the style's weapons replace the retail weapons of their type. `SuitPathWeaponPacks` may add a weapon-only pack for the types left. Once the run is finished (New Game+) every DLC item is back in the store for free. |
+
+**On its own** the add-on also raises the game's sound bank table from 35 to
+96 (`SoundBankSlots`), since the DLC weapons bring their own banks. With the
+randomizer installed, the randomizer does that.
 
 Every patch site is checked against the Steam bytes before it is placed, and
 the log says which ones went in.
@@ -63,34 +69,44 @@ the log says which ones went in.
 
 **[Download the latest release](https://github.com/RichardHafer/DS2008-ConsoleDLC/releases/latest)**
 
-Install the [randomizer](https://github.com/RichardHafer/DS2008-Randomizer/releases/latest)
-first. Then close the game and extract this archive into the game folder
-(Steam: right-click Dead Space > Manage > Browse local files, the folder with
+Close the game and extract the archive into the game folder (Steam:
+right-click Dead Space > Manage > Browse local files, the folder with
 `Dead Space.exe`). The installed files should look like this:
 
 ```text
 Dead Space/
-|-- winmm.dll                                   (from the randomizer)
-|-- DeadSpace2008Randomizer.ini
+|-- winmm.dll                                   (Ultimate ASI Loader)
+|-- DeadSpace2008Randomizer_ConsoleDLC.ini      (settings when playing without the randomizer)
 |-- plugins/
-|   |-- DeadSpace2008Randomizer.asi             (the randomizer)
-|   `-- DeadSpace2008Randomizer_ConsoleDLC.asi  (this add-on)
+|   `-- DeadSpace2008Randomizer_ConsoleDLC.asi
 `-- ds1_randomizer_assets/
     `-- dlc/
         `-- *.str                               (the converted packs)
 ```
 
-Start the game. `DeadSpace2008Randomizer.log` has an `extension: ... attached`
-line when the add-on is in use, and the Console DLC page of the settings window
-is no longer greyed out.
+If the folder already has a `winmm.dll` from the randomizer or another mod,
+keep that one; it is the same loader.
 
-Settings go into `DeadSpace2008Randomizer.ini`, section `[DeadSpace2008Randomizer]`,
-or the settings window:
+**Without the randomizer** the add-on writes
+`DeadSpace2008Randomizer_ConsoleDLC.log` into the game folder and reads
+`DeadSpace2008Randomizer_ConsoleDLC.ini`:
 
 | Key | Default | |
 |---|---|---|
 | `ConsoleDlc` | 1 | The DLC suits and weapons in the store. |
 | `SuitSlots` | 64 | Size of the suit table (30 in the original game). |
+| `SoundBankSlots` | 96 | Loaded sound banks (35 in the original game). |
+
+**With the [randomizer](https://github.com/RichardHafer/DS2008-Randomizer/releases/latest)**
+installed as well, the add-on's own INI and log are not used.
+`DeadSpace2008Randomizer.log` has an `extension: ... attached` line, the
+Console DLC page of the settings window is no longer greyed out, and the keys
+go into `DeadSpace2008Randomizer.ini`:
+
+| Key | Default | |
+|---|---|---|
+| `ConsoleDlc` | 1 | The DLC suits and weapons in the store. |
+| `SuitSlots` | 64 | Size of the suit table. |
 | `SuitPaths` | 0 | Seeded runs in one DLC style. |
 | `SuitPath_<name>` | 1 | Which styles a suit path may pick. |
 | `SuitPathWeaponPacks` | 1 | A suit path may add a weapon-only pack. |
@@ -99,8 +115,8 @@ To uninstall, delete `plugins\DeadSpace2008Randomizer_ConsoleDLC.asi` and the
 `ds1_randomizer_assets\dlc` folder. Keep it installed while you play a save
 that holds DLC items.
 
-If something goes wrong, send `DeadSpace2008Randomizer.log` (and
-`DeadSpace2008Randomizer.prev.log` after a crash) with a short description.
+If something goes wrong, send the log (the add-on's own, or
+`DeadSpace2008Randomizer.log` with the randomizer) with a short description.
 
 ---
 
@@ -132,12 +148,19 @@ The archives are converted offline from the console packs:
 - The level suits in DLC style are repainted from the level suits with the
   pack's paint, plates and decals.
 
-### Working with the randomizer
+### With and without the randomizer
 
-The randomizer's extension interface is `src/ds2008_extension.h`. The add-on
-never hooks a function the randomizer hooks: the randomizer calls it from its
-own stream, store and poll hooks, and hands it stream state, verified hook
-sites and the seed.
+On load the add-on looks for `DeadSpace2008Randomizer.asi` where the ASI loader
+picks plugins up. If it is there, the add-on waits: the randomizer attaches
+through the extension interface in `src/ds2008_extension.h`, calls it from its
+own stream, store and poll hooks and hands it stream state, verified hook
+sites and the seed. The add-on never hooks a function the randomizer hooks.
+
+If it is not there, the add-on does that part itself (`src/dlc/standalone.inc`):
+its own `StreamManager::Load` hook, poll thread, log and INI, the same retail
+byte check before every hook, and the larger sound bank table. It checks that
+the executable is the Steam build first and patches nothing otherwise. The
+suit paths need the randomizer's store hooks and seed, so they stay off.
 
 ## Building
 
@@ -159,11 +182,14 @@ python -I tools\ds1_dlc_build.py
 python -I tools\make_release.py assets_dlc --version 1.0.0
 ```
 
-`make_release.py` packs only the archives the plugin's table lists.
+`make_release.py` packs only the archives the plugin's table lists. It also
+needs the Ultimate ASI Loader's `winmm.dll` in `release/`, which is not part
+of the repository.
 
 ## Credits
 
 - [safetyhook](https://github.com/cursey/safetyhook) and [Zydis](https://github.com/zyantific/zydis) for hooking
+- [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader) by ThirteenAG for loading the plugin
 - Gibbed for the Visceral archive tools
 - Everyone who played test runs and sent logs
 
