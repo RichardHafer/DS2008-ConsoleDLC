@@ -11,7 +11,7 @@ store and in every chapter:
 - levels 1 to 6 of the suit styles (Military 1 to 5, Mining Rig 1) on the stats
   of the level suits
 
-It runs on its own, or together with the Dead Space 2008 Randomizer.
+It runs on its own, or together with the Dead Space 2008 Randomizer (1.0.1 or later).
 
 INSTALL
 

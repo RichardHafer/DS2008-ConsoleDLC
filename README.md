@@ -98,7 +98,7 @@ keep that one; it is the same loader.
 | `SoundBankSlots` | 96 | Loaded sound banks (35 in the original game). |
 
 **With the [randomizer](https://github.com/RichardHafer/DS2008-Randomizer/releases/latest)**
-installed as well, the add-on's own INI and log are not used.
+(1.0.1 or later) installed as well, the add-on's own INI and log are not used.
 `DeadSpace2008Randomizer.log` has an `extension: ... attached` line, the
 Console DLC page of the settings window is no longer greyed out, and the keys
 go into `DeadSpace2008Randomizer.ini`:

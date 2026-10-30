@@ -112,6 +112,19 @@
         }
     }
 
+    // With the randomizer installed: tell in our own log when it never attached (version 1.0.0 could look for this
+    // plugin before the ASI loader had loaded it; a save wearing a DLC suit then crashed on load).
+    DWORD WINAPI HostWatch(LPVOID)
+    {
+        Sleep(15000);
+        if (InterlockedCompareExchange(&gMode, kModeUndecided, kModeUndecided) != kModeUndecided)
+            return 0;
+        std::snprintf(gLogPath, sizeof(gLogPath), "%sDeadSpace2008Randomizer_ConsoleDLC.log", gGameRoot);
+        Log("DeadSpace2008Randomizer.asi is installed but did not attach this plugin within 15 s: no DLC items this "
+            "session. Update the randomizer to 1.0.1 or later, or restart the game.");
+        return 0;
+    }
+
     // DllMain: decide who drives the plugin.
     void StandaloneAttach()
     {
@@ -121,7 +134,12 @@
             return;
         cut[1] = '\0';
         if (HostInstalled())
-            return;   // the randomizer attaches once the code is decrypted
+        {
+            // the randomizer attaches once the code is decrypted
+            if (HANDLE thread = CreateThread(nullptr, 0, &HostWatch, nullptr, 0, nullptr))
+                CloseHandle(thread);
+            return;
+        }
         if (InterlockedCompareExchange(&gMode, kModeStandalone, kModeUndecided) != kModeUndecided)
             return;
         std::snprintf(gIniPath, sizeof(gIniPath), "%sDeadSpace2008Randomizer_ConsoleDLC.ini", gGameRoot);
