@@ -91,10 +91,236 @@
                done == size;
     }
 
+    // RIG colours ([DeadSpace2008Randomizer] RigColours, off by default): the health and stasis bars of the DLC
+    // and custom suits in a colour per suit style. The bars' materials hold their colours as a 4x4 table
+    // (g_statusTint; the game sets no value of its own): red, yellow and the normal teal. Our archives keep it
+    // uncompressed, so a copy of the suit archive with the teal row changed goes to <model>_rig.str and loads
+    // instead. RigColour_<Style> = R,G,B (0-255) or off; a stamp file next to the copy says what it was made from.
+    bool gRigColours = false;
+
+    struct RigStyle
+    {
+        const char* prefix;
+        const char* key;
+        uint8_t r, g, b;   // 0, 0, 0: unchanged unless the INI names a colour
+    };
+    // Model suits of your own are left out: their leg settings go by the archive name.
+    constexpr RigStyle kRigStyles[] = {
+        {"uniScorpion", "Scorpion", 255, 170, 40},      {"uniCustom_csco", "Scorpion", 255, 170, 40},
+        {"uniSony", "Obsidian", 60, 140, 255},          {"uniCustom_cobs", "Obsidian", 60, 140, 255},
+        {"uniUnitology", "Unitology", 100, 125, 255},   {"uniCustom_cuni", "Unitology", 100, 125, 255},
+        {"uniMicrosoft", "Elite", 84, 231, 0},          {"uniCustom_celi", "Elite", 84, 231, 0},
+        {"uniAstronaut", "Astronaut", 235, 240, 255},   {"uniCustom_cast", "Astronaut", 235, 240, 255},
+        {"uniCustom_cmil", "Military", 25, 70, 200},
+    };
+    // g_statusTint of the health and the stasis bar as the retail materials have it; row 2 (words 8-10) is the teal
+    constexpr uint32_t kRigHealthTable[16] = {0x3F2B851F, 0x3E0F5C29, 0x3E0F5C29, 0x3F800000, 0x3F547AE2, 0x3F428F5C,
+                                              0x3EBD70A4, 0x3F800000, 0x3EBD70A4, 0x3F547AE2, 0x3F35C28F, 0x00000000,
+                                              0x3F800000, 0x00000000, 0x00000000, 0x00000000};
+    constexpr uint32_t kRigStasisTable[16] = {0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x3F666667, 0x3DCCCCCD,
+                                              0x3DCCCCCD, 0x00000000, 0x3EBD70A4, 0x3F547AE2, 0x3F35C28F, 0x00000000,
+                                              0x00000000, 0x00000000, 0x00000000, 0x00000000};
+
+    // The colour for this suit archive; false when its style is unknown or left unchanged.
+    bool RigColourFor(const char* model, uint8_t rgb[3], const char** style)
+    {
+        for (const RigStyle& s : kRigStyles)
+        {
+            if (_strnicmp(model, s.prefix, std::strlen(s.prefix)) != 0)
+                continue;
+            *style = s.key;
+            char key[64], value[64];
+            std::snprintf(key, sizeof(key), "RigColour_%s", s.key);
+            GetPrivateProfileStringA("DeadSpace2008Randomizer", key, "", value, sizeof(value), gIniPath);
+            int r = s.r, g = s.g, b = s.b;
+            if (value[0])
+            {
+                if (_stricmp(value, "off") == 0 || sscanf_s(value, "%d , %d , %d", &r, &g, &b) != 3)
+                    return false;
+            }
+            if (!r && !g && !b)
+                return false;
+            rgb[0] = static_cast<uint8_t>(r < 0 ? 0 : r > 255 ? 255 : r);
+            rgb[1] = static_cast<uint8_t>(g < 0 ? 0 : g > 255 ? 255 : g);
+            rgb[2] = static_cast<uint8_t>(b < 0 ? 0 : b > 255 ? 255 : b);
+            return true;
+        }
+        return false;
+    }
+
+    // Replaces the teal row of every copy of a table in data; returns the number of copies.
+    unsigned PatchRigTable(uint8_t* data, size_t size, const uint32_t (&table)[16], const uint8_t rgb[3])
+    {
+        // byte steps: archive members are not always 4-byte aligned in the file
+        unsigned hits = 0;
+        for (size_t at = 0; at + sizeof(table) <= size; ++at)
+        {
+            if (data[at] != static_cast<uint8_t>(table[0]) || std::memcmp(data + at, table, sizeof(table)) != 0)
+                continue;
+            for (int c = 0; c < 3; ++c)
+            {
+                const float value = rgb[c] / 255.0f;
+                std::memcpy(data + at + 32 + 4 * c, &value, 4);
+            }
+            ++hits;
+            at += sizeof(table) - 1;
+        }
+        return hits;
+    }
+
+    // CRC-32 of the lower-case text, as the game names materials
+    uint32_t RigCrcLower(const char* text)
+    {
+        uint32_t crc = 0xFFFFFFFFu;
+        for (const char* c = text; *c; ++c)
+        {
+            crc ^= static_cast<uint8_t>(*c >= 'A' && *c <= 'Z' ? *c + 32 : *c);
+            for (int k = 0; k < 8; ++k)
+                crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
+        }
+        return ~crc;
+    }
+
+    // Replaces every copy of a 32-bit word (any alignment); returns the number of copies.
+    unsigned ReplaceRigWord(uint8_t* data, size_t size, uint32_t from, uint32_t to)
+    {
+        unsigned hits = 0;
+        for (size_t at = 0; at + 4 <= size; ++at)
+        {
+            if (std::memcmp(data + at, &from, 4) != 0)
+                continue;
+            std::memcpy(data + at, &to, 4);
+            ++hits;
+            at += 3;
+        }
+        return hits;
+    }
+
+    // Every suit ships the bar material under the same resource id (4 words in the table of contents) and the
+    // same name (its CRC in the material and in the RIG mesh): while the old suit is still loaded at a suit change
+    // the game keeps the material it has, so the colour stuck. The copy gets a name and id of its own per suit.
+    bool RenameRigMaterial(uint8_t* data, size_t size, const char* model, const char* bar, uint32_t oldId,
+                           uint32_t oldCrc)
+    {
+        char oldName[32], newName[32], idText[64];
+        std::snprintf(oldName, sizeof(oldName), "playerMinerA_%s", bar);
+        // the same length as playerMinerA, so nothing in the material moves
+        std::snprintf(newName, sizeof(newName), "rig%08Xx_%s", RigCrcLower(model), bar);
+        const size_t length = std::strlen(oldName) + 1;
+        unsigned names = 0;
+        size_t found = 0;
+        for (size_t at = 0; at + length <= size; ++at)
+        {
+            if (data[at] == 'p' && std::memcmp(data + at, oldName, length) == 0)
+            {
+                found = at;
+                ++names;
+            }
+        }
+        if (names != 1)
+            return false;
+        std::snprintf(idText, sizeof(idText), "%s:%s", model, bar);
+        const uint32_t newCrc = RigCrcLower(newName), newId = RigCrcLower(idText);
+        // check the counts before changing anything
+        unsigned ids = 0, crcs = 0;
+        for (size_t at = 0; at + 4 <= size; ++at)
+        {
+            ids += std::memcmp(data + at, &oldId, 4) == 0;
+            crcs += std::memcmp(data + at, &oldCrc, 4) == 0;
+        }
+        if (ids != 4 || crcs != 3)
+            return false;
+        std::memcpy(data + found, newName, length);
+        ReplaceRigWord(data, size, oldId, newId);
+        ReplaceRigWord(data, size, oldCrc, newCrc);
+        return true;
+    }
+
+    // <folder><model>_rig.str in this colour, written when its stamp does not match; false when it cannot be made.
+    bool EnsureRigArchive(const char* model, const uint8_t rgb[3], const char* style)
+    {
+        char src[MAX_PATH], dst[MAX_PATH], stampPath[MAX_PATH], stamp[128], old[128];
+        std::snprintf(src, sizeof(src), "%s%s%s.str", gGameRoot, kConsoleDlcFolder, model);
+        std::snprintf(dst, sizeof(dst), "%s%s%s_rig.str", gGameRoot, kConsoleDlcFolder, model);
+        std::snprintf(stampPath, sizeof(stampPath), "%s%s%s_rig.txt", gGameRoot, kConsoleDlcFolder, model);
+        WIN32_FILE_ATTRIBUTE_DATA info{};
+        if (!GetFileAttributesExA(src, GetFileExInfoStandard, &info))
+            return false;
+        // v2: the bar materials also get names and ids of their own
+        std::snprintf(stamp, sizeof(stamp), "v2 %u,%u,%u %lu %08lX%08lX", rgb[0], rgb[1], rgb[2], info.nFileSizeLow,
+                      info.ftLastWriteTime.dwHighDateTime, info.ftLastWriteTime.dwLowDateTime);
+        old[0] = 0;
+        if (HANDLE f = CreateFileA(stampPath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+            f != INVALID_HANDLE_VALUE)
+        {
+            DWORD got = 0;
+            ReadFile(f, old, sizeof(old) - 1, &got, nullptr);
+            old[got] = 0;
+            CloseHandle(f);
+        }
+        if (std::strcmp(old, stamp) == 0 && GetFileAttributesA(dst) != INVALID_FILE_ATTRIBUTES)
+        {
+            Log("RIG colour: %s (%s) %s reused", model, style, stamp);
+            return true;
+        }
+        const DWORD size = info.nFileSizeLow;
+        auto* data = static_cast<uint8_t*>(VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+        if (!data)
+            return false;
+        bool ok = false;
+        DWORD got = 0;
+        if (HANDLE f = CreateFileA(src, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+            f != INVALID_HANDLE_VALUE)
+        {
+            ok = ReadFile(f, data, size, &got, nullptr) && got == size;
+            CloseHandle(f);
+        }
+        unsigned health = 0, stasis = 0;
+        if (ok)
+        {
+            health = PatchRigTable(data, size, kRigHealthTable, rgb);
+            stasis = PatchRigTable(data, size, kRigStasisTable, rgb);
+            // two parameter copies per material; anything else is another layout and stays untouched
+            ok = health == 2 && stasis == 2 &&
+                 RenameRigMaterial(data, size, model, "healthbar", 0xCD738B86u, 0x5FAA435Au) &&
+                 RenameRigMaterial(data, size, model, "stasisbar", 0x1D71ABA5u, 0x2CC69DA0u);
+        }
+        if (ok)
+        {
+            ok = false;
+            if (HANDLE f = CreateFileA(dst, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+                f != INVALID_HANDLE_VALUE)
+            {
+                DWORD put = 0;
+                ok = WriteFile(f, data, size, &put, nullptr) && put == size;
+                CloseHandle(f);
+            }
+            if (ok)
+            {
+                if (HANDLE f = CreateFileA(stampPath, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+                    f != INVALID_HANDLE_VALUE)
+                {
+                    DWORD put = 0;
+                    WriteFile(f, stamp, static_cast<DWORD>(std::strlen(stamp)), &put, nullptr);
+                    CloseHandle(f);
+                }
+            }
+            else
+            {
+                DeleteFileA(dst);
+            }
+        }
+        VirtualFree(data, 0, MEM_RELEASE);
+        Log("RIG colour: %s (%s) %u,%u,%u: health tables %u, stasis tables %u, %s", model, style, rgb[0], rgb[1],
+            rgb[2], health, stasis, ok ? "bar materials renamed, written" : "NOT made, the suit keeps its colour");
+        return ok;
+    }
+
     void LoadConsoleDlcSettings()
     {
         gConsoleDlc = GetPrivateProfileIntA("DeadSpace2008Randomizer", "ConsoleDlc", 1, gIniPath) != 0;
         gConsoleDlcMaterials = GetPrivateProfileIntA("DeadSpace2008Randomizer", "ConsoleDlcMaterials", 0, gIniPath) != 0;
+        gRigColours = GetPrivateProfileIntA("DeadSpace2008Randomizer", "RigColours", 0, gIniPath) != 0;
     }
 
     uint8_t* ConsoleDlcEntryFor(uint8_t* manager, uint32_t number, int* index)
@@ -186,6 +412,7 @@
             Log("console DLC: off");
             return;
         }
+        Log("console DLC: RIG colours %s", gRigColours ? "on (RigColour_<Style> in the INI)" : "off");
         unsigned present = 0;
         for (unsigned i = 0; i < kConsoleDlcLineCount; ++i)
         {
@@ -204,6 +431,11 @@
                 if (GetFileAttributesA(variant) != INVALID_FILE_ATTRIBUTES)
                     std::snprintf(gConsoleDlcModel[i], sizeof(gConsoleDlcModel[i]), "%s_cm", line.modelArchive);
             }
+            uint8_t rgb[3];
+            const char* style = nullptr;
+            if (gRigColours && !line.weapon && haveModel && RigColourFor(line.modelArchive, rgb, &style) &&
+                EnsureRigArchive(gConsoleDlcModel[i], rgb, style))
+                strncat_s(gConsoleDlcModel[i], "_rig", _TRUNCATE);
             // A suit fills table entry key - 1 unchecked; past the table it would overwrite the manager
             const bool fits = line.weapon || line.key <= gUniformSlotCount;
             gConsoleDlcPresent[i] = haveStore && haveModel && fits;

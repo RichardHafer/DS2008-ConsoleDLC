@@ -286,9 +286,11 @@ extern "C" __declspec(dllexport) const char* __cdecl DS2008_DlcName(const char* 
 {
     if (!modelArchive)
         return nullptr;
-    // ConsoleDlcMaterials loads <model>_cm instead
+    // ConsoleDlcMaterials loads <model>_cm instead, RigColours <model>_rig or <model>_cm_rig
     size_t length = strnlen(modelArchive, 128);
-    if (length > 3 && _stricmp(modelArchive + length - 3, "_cm") == 0)
+    if (length > 4 && _strnicmp(modelArchive + length - 4, "_rig", 4) == 0)
+        length -= 4;
+    if (length > 3 && _strnicmp(modelArchive + length - 3, "_cm", 3) == 0)
         length -= 3;
     for (const DlcName& entry : kDlcNames)
         if (std::strlen(entry.model) == length && _strnicmp(entry.model, modelArchive, length) == 0)
