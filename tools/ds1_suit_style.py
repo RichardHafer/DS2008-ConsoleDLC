@@ -217,6 +217,29 @@ def muted_copper(rgb, paint, max_share=0.015):
     return np.isin(labels, keep).astype(np.float64)
 
 
+def sampled_pixels(target, map_name, shape):
+    """Pixels of a colour map the suit's mesh really samples, from the mesh the icon export wrote
+    (icon_work/suit_levelN/mesh.npz); None without it."""
+    import json
+    from PIL import ImageDraw
+    levels = {"unilvl1": 1, "unilvl2": 2, "unilvl3": 3, "unilvl4": 4, "unilvl5": 5, "uniMarine": 6}
+    folder = b.DLC / "icon_work" / ("suit_level%d" % levels.get(target, 0))
+    if not (folder / "mesh.npz").is_file():
+        return None
+    mesh = np.load(folder / "mesh.npz")
+    maps = json.loads((b.DLC / "icon_work" / "manifest_suits.json").read_text(encoding="utf-8"))
+    maps = maps["suit_level%d" % levels[target]]["maps"]
+    canvas = Image.new("L", (shape[1], shape[0]), 0)
+    draw = ImageDraw.Draw(canvas)
+    for k, name in enumerate(maps):
+        if name != map_name + ".png" or "uv%d" % k not in mesh.files:
+            continue
+        uv, tris = mesh["uv%d" % k], mesh["tris%d" % k]
+        for t in tris:
+            draw.polygon([(uv[i][0] % 1 * shape[1], (1 - uv[i][1] % 1) * shape[0]) for i in t], fill=255)
+    return np.asarray(canvas) > 0
+
+
 def green_lens_mask(rgb):
     """The pale green eye lenses of the level 6 helmet."""
     h = hsv(rgb)
@@ -522,6 +545,14 @@ def stylize(style, target, out_dir):
             h0 = hsv(rgb)
             prints = (h0[..., 1] > 64) & (h0[..., 2] > 50) & ~cyan_mask(rgb) & ~green_lens_mask(rgb)
             raw_mask = np.maximum(raw_mask, close_mask(raw_mask, 25) * prints)
+        if target in RUST_PAINT:
+            # the level 4 armour samples the neutral grey filler between the texture's islands on some faces; left
+            # unpainted it showed as dark stripes on the arms of the clean styles (2026-10-30)
+            used = sampled_pixels(target, name, rgb.shape[:2])
+            if used is not None:
+                h0 = hsv(rgb)
+                filler = used & (h0[..., 1] < 16) & (h0[..., 2] > 70) & (h0[..., 2] < 140)
+                raw_mask = np.maximum(raw_mask, filler.astype(np.float64))
         # the closed mask decides; grime spots inside a plate are repainted with it (they stay dark by brightness)
         # Clean styles and the Scorpion on the grimy level 4 suit get tidy paint: grime covered and smoothed away.
         tidy = clean or (style == "scorpion" and target in RUST_PAINT)
@@ -639,7 +670,9 @@ def stylize(style, target, out_dir):
                     lens = glass
                 # a whole visor glass (levels 1 to 3) shines as bright as the console suit's glow map; tinted to
                 # 55 % it read as switched off next to level 4 (2026-10-30)
-                out[lens] = np.clip(np.asarray(visor, dtype=np.float64) * shade[lens][:, None], 0, 255)
+                # never past 255 in the visor's brightest channel: the Military blue went cyan-white there
+                lift = np.minimum(shade[lens], 255 / max(float(np.max(visor)), 1))
+                out[lens] = np.clip(np.asarray(visor, dtype=np.float64) * lift[:, None], 0, 255)
                 from scipy import ndimage
                 ring = ndimage.binary_dilation(lens, iterations=3) & ~lens
                 if ring.any() and target in WHITE_PAINT:

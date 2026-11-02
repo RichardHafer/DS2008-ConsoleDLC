@@ -4,7 +4,7 @@ The zip holds the plugin and the DLC archives the plugin's table names, nothing 
 sit in the assets folder but which the table does not list (a suit built for yourself) stays out, with its text
 tables.
 
-usage: python -I tools/make_release.py ASSETS_DIR [--version 1.0.0]
+usage: python -I tools/make_release.py ASSETS_DIR [--version 1.0.1]
   ASSETS_DIR is the folder tools/ds1_dlc_build.py wrote (assets_dlc).
 """
 import argparse
@@ -78,7 +78,7 @@ def pick(assets):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("assets", type=Path)
-    p.add_argument("--version", default="1.0.0")
+    p.add_argument("--version", default="1.0.1")
     a = p.parse_args()
     if not PLUGIN.is_file():
         raise SystemExit("build the plugin first (build.bat)")

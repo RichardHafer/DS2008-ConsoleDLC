@@ -18,6 +18,9 @@
 
 namespace
 {
+    // The randomizer logs this name when it attaches the plugin.
+    constexpr char kDlcName[] = "Dead Space 2008 Randomizer Console DLC 1.0.1";
+
     const ds2008::HostApi* gHost = nullptr;
     char gIniPath[MAX_PATH]{};
     char gGameRoot[MAX_PATH]{};
@@ -255,7 +258,7 @@ namespace
     };
 
     const ds2008::Extension kExtension = {
-        ds2008::kExtensionApiVersion, "Dead Space 2008 Randomizer Console DLC", &ExtensionInstall, &ExtensionWantsStreamHook,
+        ds2008::kExtensionApiVersion, kDlcName, &ExtensionInstall, &ExtensionWantsStreamHook,
         &ExtensionAdjustLoad, &ExtensionLoadSeen, &ExtensionPoll, &ExtensionUniformTail, &ExtensionUniformSlots,
         &ExtensionWantsStoreHooks, &PathStoreAddItem, &PathStoreGate, &PathNewGame, &PathStartingUniform,
         &PathFirstWeapon,

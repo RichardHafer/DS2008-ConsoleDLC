@@ -112,8 +112,8 @@
         }
     }
 
-    // With the randomizer installed: tell in our own log when it never attached (version 1.0.0 could look for this
-    // plugin before the ASI loader had loaded it; a save wearing a DLC suit then crashed on load).
+    // With the randomizer installed: tell in our own log when it never attached (randomizer 1.0.0 could look for
+    // this plugin before the ASI loader had loaded it; a save wearing a DLC suit then crashed on load).
     DWORD WINAPI HostWatch(LPVOID)
     {
         Sleep(15000);
@@ -121,7 +121,7 @@
             return 0;
         std::snprintf(gLogPath, sizeof(gLogPath), "%sDeadSpace2008Randomizer_ConsoleDLC.log", gGameRoot);
         Log("DeadSpace2008Randomizer.asi is installed but did not attach this plugin within 15 s: no DLC items this "
-            "session. Update the randomizer to 1.0.1 or later, or restart the game.");
+            "session. Update the randomizer to 1.0.2 or later, or restart the game.");
         return 0;
     }
 
@@ -147,7 +147,7 @@
         std::snprintf(gLogPath, sizeof(gLogPath), "%sDeadSpace2008Randomizer_ConsoleDLC.log", gGameRoot);
         std::snprintf(previous, sizeof(previous), "%sDeadSpace2008Randomizer_ConsoleDLC.prev.log", gGameRoot);
         MoveFileExA(gLogPath, previous, MOVEFILE_REPLACE_EXISTING);
-        Log("Dead Space 2008 Randomizer Console DLC, standalone: no DeadSpace2008Randomizer.asi found");
+        Log("%s, standalone: no DeadSpace2008Randomizer.asi found", kDlcName);
         Log("settings: %s (%s)", gIniPath,
             GetFileAttributesA(gIniPath) != INVALID_FILE_ATTRIBUTES ? "found" : "not found, defaults");
         // As the randomizer does: the bank table goes in before the audio init builds its manager.

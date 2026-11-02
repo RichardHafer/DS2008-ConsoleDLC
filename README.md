@@ -98,7 +98,7 @@ keep that one; it is the same loader.
 | `SoundBankSlots` | 96 | Loaded sound banks (35 in the original game). |
 
 **With the [randomizer](https://github.com/RichardHafer/DS2008-Randomizer/releases/latest)**
-(1.0.1 or later) installed as well, the add-on's own INI and log are not used.
+(1.0.2 or later) installed as well, the add-on's own INI and log are not used.
 `DeadSpace2008Randomizer.log` has an `extension: ... attached` line, the
 Console DLC page of the settings window is no longer greyed out, and the keys
 go into `DeadSpace2008Randomizer.ini`:
@@ -111,12 +111,88 @@ go into `DeadSpace2008Randomizer.ini`:
 | `SuitPath_<name>` | 1 | Which styles a suit path may pick. |
 | `SuitPathWeaponPacks` | 1 | A suit path may add a weapon-only pack. |
 
-To uninstall, delete `plugins\DeadSpace2008Randomizer_ConsoleDLC.asi` and the
-`ds1_randomizer_assets\dlc` folder. Keep it installed while you play a save
-that holds DLC items.
+To uninstall, see [Uninstall and saves](#uninstall-and-saves) first.
 
-If something goes wrong, send the log (the add-on's own, or
-`DeadSpace2008Randomizer.log` with the randomizer) with a short description.
+### Compatibility
+
+- Made for the Steam release of Dead Space (1.0.0.222). On another build every
+  patch site whose bytes differ is left alone and the log names it.
+- Randomizer: 1.0.2 or later (see [Versions](#versions)), or none at all.
+- Works next to DeadSpaceFixes. DeadSpaceFixes and the Ishimura Stability Patch
+  both ship an `xinput1_3.dll`, so only one of those two can be installed; the
+  add-on does not use that file. The Ishimura Stability Patch was not tested
+  with the add-on.
+- Do not run a 4GB (large address) patcher on `Dead Space.exe`: the Steam build
+  refuses a changed executable with "Application load error 3:0000065432". The
+  add-on does not need it. Mods that raise the limit without touching the exe,
+  such as DeadSpace2008-4GB-Mod (a `dsound.dll` proxy), were not tested with it.
+
+### Troubleshooting
+
+Which log to look at:
+
+- Without the randomizer: `DeadSpace2008Randomizer_ConsoleDLC.log` in the game
+  folder (`.prev.log` is the run before).
+- With the randomizer: `DeadSpace2008Randomizer.log`. The add-on's own log then
+  only shows up when the randomizer never attached it.
+
+A working start has these lines:
+
+| Line | Meaning |
+|---|---|
+| `extension: Dead Space 2008 Randomizer Console DLC 1.0.1 attached` | The randomizer found the add-on (randomizer log). |
+| `Dead Space 2008 Randomizer Console DLC 1.0.1, standalone: ...` | Running without the randomizer (own log). |
+| `suit slots: table extended from 30 to 64 entries` | The larger suit table is in. |
+| `console DLC: 72 of 72 line(s) installed in ...` | Every pack archive was found. |
+| `console DLC: entry ...` | One line per suit or weapon registered with the game. |
+| `sound bank slots: table extended from 35 to 96 banks` | Without the randomizer; with it, the randomizer logs its own line. |
+
+When something is wrong:
+
+| Line | What to do |
+|---|---|
+| `... did not attach this plugin within 15 s: no DLC items this session` | Update the randomizer to 1.0.2 or later, or restart the game. |
+| `console DLC: N of 72 line(s) installed` with N below 72 | Files are missing in `ds1_randomizer_assets\dlc`; extract the zip again. |
+| `suit slots: NOT extended ...` | DLC suits past the 30th slot are missing. Send the log. |
+| `hook ... REFUSED` | Not the Steam build, or another mod changed that spot. Send the log. |
+
+Send the log with a short description of what happened.
+
+### Uninstall and saves
+
+A save remembers the suit Isaac wears and the items he carries. The DLC suits
+and weapons only exist while the add-on runs:
+
+- A save that **wears a DLC suit** does not load without the add-on. The game
+  crashes while loading (at `0x005261A6`, the player's suit data is missing).
+  This was seen in testing when randomizer 1.0.0 missed the add-on at start.
+- A save that wears a regular suit but **holds DLC weapons or items** was not
+  tested without the add-on. Treat it the same way.
+- `ConsoleDlc=0` leaves the DLC lines unregistered, so expect the same for
+  those saves.
+- A suit path run (`SuitPaths=1`) wears a DLC suit from New Game, so all of its
+  saves need the add-on.
+- Saves without any DLC item are not affected.
+
+To remove the add-on safely:
+
+1. Back up your saves: `Documents\Electronic Arts\Dead Space\ds_slot_NN.deadspacesaved`.
+2. With the add-on still installed, load the playthrough, put on a regular suit
+   at a store and save in a **new** slot.
+3. Delete `plugins\DeadSpace2008Randomizer_ConsoleDLC.asi`, the folder
+   `ds1_randomizer_assets\dlc` and `DeadSpace2008Randomizer_ConsoleDLC.ini`
+   (and `winmm.dll` if no other mod uses it). With the randomizer, its
+   `ConsoleDlc`, `SuitSlots` and `SuitPath*` keys may stay in its INI.
+4. Load the new slot. If it loads and plays, you are done. If it crashes,
+   reinstall the add-on: the older slots are untouched.
+
+The simplest way is to keep the add-on until the playthrough is finished.
+
+### Versions
+
+| Console DLC | Randomizer | |
+|---|---|---|
+| 1.0.1 | 1.0.2 or later, or none | Extension interface 3. Randomizer 1.0.0 could miss the add-on at start; 1.0.1 lacks the 1.0.2 fixes. |
 
 ---
 
@@ -179,7 +255,7 @@ PC game, Python 3 with numpy and Pillow, and Gibbed's Visceral tools
 ```bat
 set DEAD_SPACE_DIR=C:\Program Files (x86)\Steam\steamapps\common\Dead Space
 python -I tools\ds1_dlc_build.py
-python -I tools\make_release.py assets_dlc --version 1.0.0
+python -I tools\make_release.py assets_dlc --version 1.0.1
 ```
 
 `make_release.py` packs only the archives the plugin's table lists. It also

@@ -1,4 +1,4 @@
-Dead Space 2008 Randomizer: Console DLC 1.0.0
+Dead Space 2008 Randomizer: Console DLC 1.0.1
 Dead Space (2008), Steam version
 
 WHAT IT DOES
@@ -11,7 +11,7 @@ store and in every chapter:
 - levels 1 to 6 of the suit styles (Military 1 to 5, Mining Rig 1) on the stats
   of the level suits
 
-It runs on its own, or together with the Dead Space 2008 Randomizer (1.0.1 or later).
+It runs on its own, or together with the Dead Space 2008 Randomizer (1.0.2 or later).
 
 INSTALL
 
@@ -36,16 +36,42 @@ Without the randomizer: DeadSpace2008Randomizer_ConsoleDLC.ini
 With the randomizer: the same keys in DeadSpace2008Randomizer.ini or its settings
 window, plus SuitPaths=1 for runs played in one DLC style.
 
-UNINSTALL
+COMPATIBILITY
 
-Delete plugins\DeadSpace2008Randomizer_ConsoleDLC.asi and the folder
-ds1_randomizer_assets\dlc (and winmm.dll if no other mod uses it). Keep it
-installed while you play a save that holds DLC items.
+- Made for the Steam release (1.0.0.222). Patch sites that differ are skipped
+  and named in the log.
+- Randomizer 1.0.2 or later, or no randomizer at all.
+- Works next to DeadSpaceFixes. DeadSpaceFixes and the Ishimura Stability Patch
+  both ship xinput1_3.dll, so only one of those two can be installed.
+- Do not run a 4GB patcher on Dead Space.exe: Steam refuses a changed exe
+  ("Application load error 3:0000065432"). The add-on does not need it.
+
+SAVES AND UNINSTALL
+
+A save that wears a DLC suit does not load without the add-on (the game crashes
+while loading). Saves that hold DLC weapons or items were not tested without
+it; treat them the same. Saves without DLC items are not affected.
+
+To remove it safely:
+1. Back up Documents\Electronic Arts\Dead Space\ds_slot_NN.deadspacesaved.
+2. With the add-on installed, load the game, put on a regular suit at a store
+   and save in a NEW slot.
+3. Delete plugins\DeadSpace2008Randomizer_ConsoleDLC.asi, the folder
+   ds1_randomizer_assets\dlc and DeadSpace2008Randomizer_ConsoleDLC.ini (and
+   winmm.dll if no other mod uses it).
+4. Load the new slot. If it crashes, reinstall the add-on; older slots are
+   untouched.
 
 REPORTING A PROBLEM
 
 Send DeadSpace2008Randomizer_ConsoleDLC.log from the game folder (or
 DeadSpace2008Randomizer.log when the randomizer is installed) with a short
-description.
+description. A working start logs "suit slots: table extended from 30 to 64
+entries" and "console DLC: 72 of 72 line(s) installed"; with the randomizer
+also "extension: Dead Space 2008 Randomizer Console DLC 1.0.1 attached".
+
+VERSIONS
+
+Console DLC 1.0.1 works alone or with randomizer 1.0.2 or later.
 
 Not affiliated with EA or Visceral Games. The DLC content belongs to EA.
