@@ -48,7 +48,7 @@ Each one carries the inventory and armour of the level suit it is built on, so
 a Scorpion level 2 plays like the regular level 2 suit. The Scorpion levels
 carry the scorpion of the retail helmet on a clean spot of their own helmets.
 
-**Optional, off by default**
+**RIG colours, on in the shipped settings**
 
 | | |
 |---|---|
@@ -60,7 +60,7 @@ carry the scorpion of the retail helmet on a clean spot of their own helmets.
 |---|---|
 | Suit table | The game holds 30 suits. The plugin raises the table to 64 (`SuitSlots`) so all of the above fit. |
 
-**With the randomizer only, off by default**
+**With the randomizer only, on in the shipped settings**
 
 | | |
 |---|---|
@@ -106,7 +106,7 @@ keep that one; it is the same loader.
 | `ConsoleDlc` | 1 | The DLC suits and weapons in the store. |
 | `SuitSlots` | 64 | Size of the suit table (30 in the original game). |
 | `SoundBankSlots` | 96 | Loaded sound banks (35 in the original game). |
-| `RigColours` | 0 | Experimental: the RIG bars of the DLC and DLC style suits in a colour per style. The first start after a change writes recoloured copies (`<suit>_rig.str`). |
+| `RigColours` | 1 | Experimental: the RIG bars of the DLC and DLC style suits in a colour per style. The first start after a change writes recoloured copies (`<suit>_rig.str`). |
 | `RigColour_<style>` | see INI | `R,G,B` (0 to 255) or `off` for Scorpion, Obsidian, Unitology, Elite, Astronaut and Military. Red and yellow at low health stay. |
 
 **With the [randomizer](https://github.com/RichardHafer/DS2008-Randomizer/releases/latest)**
@@ -119,10 +119,10 @@ go into `DeadSpace2008Randomizer.ini`:
 |---|---|---|
 | `ConsoleDlc` | 1 | The DLC suits and weapons in the store. |
 | `SuitSlots` | 64 | Size of the suit table. |
-| `SuitPaths` | 0 | Seeded runs in one DLC style. |
+| `SuitPaths` | 1 | Seeded runs in one DLC style. |
 | `SuitPath_<name>` | 1 | Which styles a suit path may pick. |
 | `SuitPathWeaponPacks` | 1 | A suit path may add a weapon-only pack. |
-| `RigColours` | 0 | Experimental: the RIG bars of the DLC and DLC style suits in a colour per style. The first start after a change writes recoloured copies (`<suit>_rig.str`). |
+| `RigColours` | 1 | Experimental: the RIG bars of the DLC and DLC style suits in a colour per style. The first start after a change writes recoloured copies (`<suit>_rig.str`). |
 | `RigColour_<style>` | see INI | `R,G,B` (0 to 255) or `off` for Scorpion, Obsidian, Unitology, Elite, Astronaut and Military. Red and yellow at low health stay. |
 
 To uninstall, see [Uninstall and saves](#uninstall-and-saves) first.

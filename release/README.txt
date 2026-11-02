@@ -12,7 +12,7 @@ store and in every chapter:
 - Heavy Damage, Hot Rod, Pedestrian, Speed Kills and Big Gun weapon packs
 - levels 1 to 6 of the suit styles (Military 1 to 5, Mining Rig 1) on the stats
   of the level suits
-- optional RIG bar colours per suit style (RigColours in the INI, off by default)
+- RIG bar colours per suit style (RigColours in the INI, on)
 
 It runs on its own, or together with the Dead Space 2008 Randomizer (1.0.2 or later).
 
