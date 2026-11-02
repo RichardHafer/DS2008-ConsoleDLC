@@ -30,11 +30,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from ds1_dlc_convert import simgroup, tg4h  # noqa: E402
 from ds1_dlc_rules import (KEY_PROPERTIES, NUMBER_PROPERTIES, PACK_ORDER, pack_rules, sibling,  # noqa: E402
-                           suit_stem, texture_for)
+                           source_dir, suit_stem, texture_for, weapon_of)
 from ds1_dlc_xbox import texture_format, tg4d_to_pc, tg4h_to_ps3  # noqa: E402
 import ds1_texture  # noqa: E402
 import ds1_mesh_convert  # noqa: E402
 import ds1_sg_be  # noqa: E402
+import ds1_dlc_proto  # noqa: E402
 from ds1_property_kinds import load as load_property_kinds  # noqa: E402
 
 DLC = ROOT / "DLCs"
@@ -242,6 +243,58 @@ def remap_simgroup(data, remap):
     return bytes(out), moved
 
 
+def own_store_effects(pc, archive_name, plan, report):
+    """The prototypes name the base weapon's store effects (inv_wpn_cbeam, ...) and the SimGroups reference them by
+    the PC ids. Under those ids our copies would stand in for the base weapons' and the icon patch would reach
+    them; so each gets a name and id of its own (inv_wpn_uni_cbeam), the same in store and model archive."""
+    stem = archive_name[3:] if archive_name.startswith("gp_") else archive_name
+    code = stem.split("_")[1]
+    moved = {}
+    for index, entry in enumerate(plan):
+        if len(entry) != 4:
+            continue   # MetaModels still waiting for their ids
+        m, data, attrs, how = entry
+        name = attrs["base_name"]
+        if attrs["type_name"] != "VFX" or not name.startswith("inv_wpn_") or name.startswith("inv_wpn_%s_" % code):
+            continue
+        attrs = dict(attrs)
+        new_name = "inv_wpn_%s_%s" % (code, name[len("inv_wpn_"):])
+        old_id, new_id = int(attrs["u0C"], 16), crc_lower(new_name)
+        if new_id in pc.ids:
+            raise SystemExit("%s: effect id %08X of %s is taken" % (archive_name, new_id, new_name))
+        attrs["file_name"] = attrs["file_name"].replace(name.rsplit(".", 1)[0], new_name.rsplit(".", 1)[0])
+        attrs["base_name"] = new_name
+        attrs["u0C"] = attrs["type2"] = attrs["u14"] = attrs["u18"] = "%08X" % new_id
+        moved[old_id] = new_id
+        plan[index] = (m, data, attrs, how + ", as " + new_name)
+    relinked = 0
+    for index, entry in enumerate(plan):
+        if len(entry) != 4 or entry[2]["type_name"] != "SimGroup":
+            continue
+        out = entry[1]
+        for old_id, new_id in moved.items():
+            blob = struct.pack("<4I", *[old_id] * 4)
+            relinked += out.count(blob)
+            out = out.replace(blob, struct.pack("<4I", *[new_id] * 4))
+        plan[index] = (entry[0], out, entry[2], entry[3])
+    report.append("%s: %d store effect(s) under names of their own, %d SimGroup reference(s) moved"
+                  % (archive_name, len(moved), relinked))
+
+
+def prototype_store_simgroup(raw, pack_name, rules, archive_name, report):
+    """A prototype store archive's SimGroup on the retail Military one of the same weapon (ds1_dlc_proto)."""
+    weapon = weapon_of(archive_name)
+    template_name = "gp_pdlc_mar_" + weapon
+    template = unpack(source_dir(ds1_dlc_proto.TEMPLATE_PACK) / (template_name + ".str"),
+                      WORK / "ps3" / ds1_dlc_proto.TEMPLATE_PACK / template_name)
+    model_name = archive_name[len("gp_"):]
+    model = unpack(rules["source"] / (model_name + ".str"), WORK / "ps3" / pack_name / model_name)
+
+    def simgroup_of(folder):
+        return next(m for m in read_archive(folder) if m.attrs["type_name"] == "SimGroup").data()
+    return ds1_dlc_proto.gp_simgroup(raw, simgroup_of(template), simgroup_of(model), report, archive_name)
+
+
 def build_archive(pc, pack_name, rules, archive_name, out_root, report):
     """Build one archive; returns True when it is complete."""
     src = unpack(rules["source"] / (archive_name + ".str"), WORK / "ps3" / pack_name / archive_name)
@@ -299,8 +352,16 @@ def build_archive(pc, pack_name, rules, archive_name, out_root, report):
         attrs = dict(m.attrs)
         attrs["file_name"] = attrs["file_name"].replace(".PS3", ".WIN").replace(".XEN", ".WIN")
         if kind == "SimGroup":
-            data, moved = remap_simgroup(simgroup(m.data(), kinds=PROPERTY_KINDS), rules["remap"])
+            raw = m.data()
+            prototype = rules["prototype"]
+            if prototype and archive_name.startswith("gp_"):
+                raw = prototype_store_simgroup(raw, pack_name, rules, archive_name, report)
+            data, moved = remap_simgroup(simgroup(raw, kinds=PROPERTY_KINDS), rules["remap"])
             how = "converted" + (", %d store number(s)/index(es) moved" % moved if moved else "")
+            if prototype:
+                data = ds1_dlc_proto.fix(data, archive_name, rules["numbers"][archive_name],
+                                         prototype["tune"].get(weapon_of(archive_name), {}), report)
+                how += ", prototype fixes"
         elif kind in ("tg4h", "tg4d") and same:
             # A texture the PC ships too: its PC file. Pixel data is the same on both platforms only for DXT;
             # the rig's L8A8 health bar lines came out swapped and vanished after a death.
@@ -407,6 +468,8 @@ def build_archive(pc, pack_name, rules, archive_name, out_root, report):
             left_out.add(m.rid)
             continue
         plan.append((m, data, attrs, how))
+    if rules["prototype"]:
+        own_store_effects(pc, archive_name, plan, report)
     # PC textures a derived material still uses (the DLC dropped that map): shipped with their PC rows
     own_tex = set(dlc_tex.values())
     extra = {}
@@ -521,12 +584,14 @@ def add_weapon_icon(pc, archive_name, plan, report):
     """A DLC weapon's own inventory icon (tools/ds1_icon_build.py): a texture in the retail icon's format and the
     weapon's icon effects pointed at it by name. The DLC ships none; its effects name the retail icon."""
     stem = archive_name[3:] if archive_name.startswith("gp_") else archive_name
-    weapon = next((w for w in RETAIL_ICONS if stem.endswith("_" + w)), None)
-    image = ICON_WORK / weapon / "icons" / (stem + ".png") if weapon else None
+    weapon = weapon_of(stem)
+    image = ICON_WORK / weapon / "icons" / (stem + ".png") if weapon in RETAIL_ICONS else None
     if not image or not image.is_file():
         return
     retail = RETAIL_ICONS[weapon]
-    code = stem[len("pdlc_"):-len(weapon) - 1]
+    # the prototypes write pulserifle without the underscore
+    suffix = weapon if stem.endswith("_" + weapon) else weapon.replace("_", "")
+    code = stem[len("pdlc_"):-len(suffix) - 1]
     name = "%s_%s" % (retail, code)
     header, pixels = pc.by_key[(retail, "tg4h")][0], pc.by_key[(retail, "tg4d")][0]
     tid = crc_lower(name)
@@ -640,7 +705,9 @@ def build_pack(pc, pack_name, covered):
     print("%s: %d of %d line(s) built, %s" % (pack_name, len(good), len(lines),
                                               "; ".join(l for l in report if "INCOMPLETE" in l or "WARNING" in l)
                                               or "no warnings"))
-    return [(pack_name,) + line for line in good]
+    # prototype lines join the retail pack of their suit (suit paths, names)
+    joined = rules["prototype"]["pack"] if rules["prototype"] else pack_name
+    return [(joined,) + line for line in good]
 
 
 def write_table(installed):
@@ -680,7 +747,7 @@ def write_names(installed):
     lines = ["// Generated by tools/ds1_dlc_build.py: {model archive, display name} of every installed DLC line."]
     for pack_name, weapon, number, gp, stream, key in installed:
         if weapon:
-            kind = gp.split("_", 3)[-1].replace("_", " ").title()
+            kind = (weapon_of(gp) or gp.split("_", 3)[-1]).replace("_", " ").title()
             name = "%s %s" % (pack_name.replace("_Pack", "").replace("_", " "), kind)
         else:
             name = customs.get(stream) or suits.get(stream) or stream
@@ -734,7 +801,7 @@ def custom_fingerprint(spec):
     import ds1_custom_suit
     import ds1_suit_style
     h = hashlib.sha1(repr(spec[:8]).encode() + repr(sorted(spec[8].items())).encode())
-    for tool in ("ds1_suit_style.py", "ds1_custom_suit.py", "ds1_texture.py"):
+    for tool in ("ds1_suit_style.py", "ds1_custom_suit.py", "ds1_texture.py", "ds1_suit_emblem.py"):
         h.update((ROOT / "tools" / tool).read_bytes())
     prefix, style, target = spec[:3]
     sources = [WORK / "pc" / target / "@archive.xml"]

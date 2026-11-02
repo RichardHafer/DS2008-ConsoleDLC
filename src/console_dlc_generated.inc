@@ -40,6 +40,14 @@
 {true, 173, "gp_pdlc_c_line_gun", "pdlc_c_line_gun", 62},   // Speed_Kills_Pack
 {true, 174, "gp_pdlc_c_plasma_cutter", "pdlc_c_plasma_cutter", 63},   // Speed_Kills_Pack
 {true, 182, "gp_pdlc_d_force_gun", "pdlc_d_force_gun", 68},   // Big_Gun_Pack
+{true, 120, "gp_pdlc_uni_contact_beam", "pdlc_uni_contact_beam", 24},   // Tank_Pack
+{true, 124, "gp_pdlc_uni_plasma_cutter", "pdlc_uni_plasma_cutter", 28},   // Tank_Pack
+{true, 125, "gp_pdlc_uni_pulserifle", "pdlc_uni_pulserifle", 29},   // Tank_Pack
+{true, 126, "gp_pdlc_uni_ripper", "pdlc_uni_ripper", 30},   // Tank_Pack
+{true, 100, "gp_pdlc_sco_contact_beam", "pdlc_sco_contact_beam", 10},   // Scorpion_Pack
+{true, 101, "gp_pdlc_sco_flamethrower", "pdlc_sco_flamethrower", 11},   // Scorpion_Pack
+{true, 105, "gp_pdlc_sco_pulserifle", "pdlc_sco_pulserifle", 15},   // Scorpion_Pack
+{true, 106, "gp_pdlc_sco_ripper", "pdlc_sco_ripper", 16},   // Scorpion_Pack
 {false, 201, "uniform_custom_csco3", "uniCustom_csco3", 12},   // Custom_Suits
 {false, 202, "uniform_custom_csco1", "uniCustom_csco1", 13},   // Custom_Suits
 {false, 203, "uniform_custom_csco2", "uniCustom_csco2", 14},   // Custom_Suits

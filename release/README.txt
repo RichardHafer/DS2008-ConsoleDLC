@@ -7,9 +7,12 @@ The console DLC suits and weapons of the original Dead Space on PC, free in the
 store and in every chapter:
 - Scorpion, Obsidian, Elite, Unitology and Astronaut suits with their weapons,
   and the Military weapons
+- the unreleased Scorpion and Unitology weapons of the August 2008 Xbox
+  prototypes: all seven weapons in both styles
 - Heavy Damage, Hot Rod, Pedestrian, Speed Kills and Big Gun weapon packs
 - levels 1 to 6 of the suit styles (Military 1 to 5, Mining Rig 1) on the stats
   of the level suits
+- optional RIG bar colours per suit style (RigColours in the INI, off by default)
 
 It runs on its own, or together with the Dead Space 2008 Randomizer (1.0.2 or later).
 

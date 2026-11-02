@@ -13,7 +13,8 @@ EXTRACTED = ROOT / "DLCs" / "extracted"
 # Bundles first: Scorpion_Pack holds Scorpion_Weapon_Pack, Obsidian_Pack holds the Obsidian suit and weapons.
 PACK_ORDER = ["Scorpion_Pack", "Obsidian_Pack", "Elite_Pack", "Tank_Pack", "Astronaut_Pack", "Military_Pack",
               "Heavy_Damage_Pack", "Hot_Rod_Pack", "Pedestrian_Pack", "Speed_Kills_Pack", "Big_Gun_Pack",
-              "Scorpion_Weapon_Pack", "Obsidian_Suit", "Obsidian_Weapon_Pack"]
+              "Scorpion_Weapon_Pack", "Obsidian_Suit", "Obsidian_Weapon_Pack",
+              "Unitology_Prototype_2008-08-07", "Scorpion_Prototype_2008-08-07"]
 
 WEAPONS = {
     "plasma_cutter": {"mesh": "plasma_cutter.dae", "meta": "plasma_cutter.meta.xml", "sbk": "plasmacutr.sbk",
@@ -36,7 +37,23 @@ WEAPONS = {
 }
 
 # Xbox packs (archives like the PS3 ones, textures need ds1_dlc_xbox)
-XBOX_PACKS = {"Elite_Pack"}
+XBOX_PACKS = {"Elite_Pack", "Unitology_Prototype_2008-08-07", "Scorpion_Prototype_2008-08-07"}
+# Xbox prototypes of Aug 2008 with the weapons retail never shipped (Scorpion and Unitology sets of seven). They
+# come last, so only the lines no retail pack covers are built, and they join the retail pack of their suit. Their
+# stats are the base values; the tuning is the one retail gave that pack: Military level damage for the Tank weapons
+# (the Tank flamethrower got exactly the Military raise), two thirds of the time values for Scorpion.
+PROTOTYPES = {
+    "Unitology_Prototype_2008-08-07": {
+        "pack": "Tank_Pack",
+        "tune": {"contact_beam": {("ContactBeam", 13): {5: 8}, ("Projectile", 1): {100: 105}},
+                 "plasma_cutter": {("Projectile", 1): {10: 15}},
+                 "pulse_rifle": {("Projectile", 1): {5: 8, 10: 15}},
+                 "ripper": {("Yoyo", 0): {8: 12}, ("Yoyo", 1): {15: 23}}}},
+    "Scorpion_Prototype_2008-08-07": {
+        "pack": "Scorpion_Pack",
+        "tune": {weapon: {("Item", 3): ("scale", 2 / 3), ("Item", 4): ("scale", 2 / 3)}
+                 for weapon in ("contact_beam", "flamethrower", "pulse_rifle", "ripper")}},
+}
 # The Xbox Elite pack is the Microsoft twin of the PS3 Obsidian pack and uses the same store numbers, weapon
 # indices and uniform slot; it moves to free ones so both can be installed.
 REMAP = {"Elite_Pack": {"numbers": {133: 136, 134: 137, 135: 138, 3: 5, 1003: 1005}, "keys": {34: 37, 35: 38, 36: 39, 9: 11}}}
@@ -87,9 +104,15 @@ def weapon_of(archive):
     return None
 
 
+# effects only the prototypes have: the pulse rifle's tracer trail, which retail dropped; the retail tracer stands in
+VFX_STAND_INS = {"pulserifle_projectile.vfx": "pulse01.vfx", "pulserifle_projectileSS.vfx": "pulse01SS.vfx"}
+
+
 def sibling(archive, name, kind, pc_keys):
     """The PC resource (name) a DLC-only resource of this archive is built from, or None."""
     weapon = weapon_of(archive)
+    if kind == "VFX" and name in VFX_STAND_INS:
+        return VFX_STAND_INS[name]
     if kind == "VFX":
         m = re.match(r"inv_wpn_[^_]+_(.+)$", name)
         if m and ("inv_wpn_" + m.group(1), "VFX") in pc_keys:
@@ -160,5 +183,9 @@ def pack_rules(pack):
     remap = REMAP.get(pack, {"numbers": {}, "keys": {}})
     lines = [(weapon, remap["numbers"].get(number, number), gp, stream, remap["keys"].get(key, key))
              for weapon, number, gp, stream, key in lines]
+    numbers = {}
+    for weapon, number, gp, stream, key in lines:
+        numbers[gp] = numbers[stream] = number
     return {"source": source_dir(pack), "archives": archives, "lines": lines, "prefer": prefer,
-            "derived_same_name": derived, "xbox": pack in XBOX_PACKS, "remap": remap}
+            "derived_same_name": derived, "xbox": pack in XBOX_PACKS, "remap": remap,
+            "prototype": PROTOTYPES.get(pack), "numbers": numbers}

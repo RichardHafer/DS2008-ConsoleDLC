@@ -25,13 +25,16 @@ available.
 
 | | |
 |---|---|
-| Scorpion | Suit, Force Gun, Line Gun, Plasma Cutter |
+| Scorpion | Suit, Force Gun, Line Gun, Plasma Cutter, and from the August 2008 Xbox prototype Contact Beam, Flamethrower, Pulse Rifle, Ripper |
 | Obsidian | Suit, Line Gun, Plasma Cutter, Pulse Rifle |
 | Elite | Suit, Line Gun, Plasma Cutter, Pulse Rifle (the Xbox pack) |
-| Unitology (Tank) | Suit, Flamethrower, Force Gun, Line Gun |
+| Unitology (Tank) | Suit, Flamethrower, Force Gun, Line Gun, and from the August 2008 Xbox prototype Contact Beam, Plasma Cutter, Pulse Rifle, Ripper |
 | Astronaut | Suit, Plasma Cutter, Pulse Rifle, Ripper |
 | Military | Contact Beam, Flamethrower, Force Gun, Line Gun, Plasma Cutter, Pulse Rifle, Ripper |
 | Weapon packs | Heavy Damage, Hot Rod, Pedestrian, Speed Kills, Big Gun |
+
+The prototype weapons were never sold. Their skins are complete; their stats get the raise the retail pack
+gave its own weapons (Military damage for the Tank set, faster handling for the Scorpion set).
 
 **Level suits in DLC style**
 
@@ -42,7 +45,14 @@ available.
 | Mining Rig | Level 1 |
 
 Each one carries the inventory and armour of the level suit it is built on, so
-a Scorpion level 2 plays like the regular level 2 suit.
+a Scorpion level 2 plays like the regular level 2 suit. The Scorpion levels
+carry the scorpion of the retail helmet on a clean spot of their own helmets.
+
+**Optional, off by default**
+
+| | |
+|---|---|
+| `RigColours` | The RIG health and stasis bars of the DLC and DLC style suits in a colour per style (Scorpion gold, Obsidian blue, Unitology blue violet, Elite visor green, Astronaut white, Military dark blue). The first start after a change writes recoloured copies of those suits. The game's own level suits keep their teal. |
 
 **Engine limits**
 
@@ -96,6 +106,8 @@ keep that one; it is the same loader.
 | `ConsoleDlc` | 1 | The DLC suits and weapons in the store. |
 | `SuitSlots` | 64 | Size of the suit table (30 in the original game). |
 | `SoundBankSlots` | 96 | Loaded sound banks (35 in the original game). |
+| `RigColours` | 0 | Experimental: the RIG bars of the DLC and DLC style suits in a colour per style. The first start after a change writes recoloured copies (`<suit>_rig.str`). |
+| `RigColour_<style>` | see INI | `R,G,B` (0 to 255) or `off` for Scorpion, Obsidian, Unitology, Elite, Astronaut and Military. Red and yellow at low health stay. |
 
 **With the [randomizer](https://github.com/RichardHafer/DS2008-Randomizer/releases/latest)**
 (1.0.2 or later) installed as well, the add-on's own INI and log are not used.
@@ -110,6 +122,8 @@ go into `DeadSpace2008Randomizer.ini`:
 | `SuitPaths` | 0 | Seeded runs in one DLC style. |
 | `SuitPath_<name>` | 1 | Which styles a suit path may pick. |
 | `SuitPathWeaponPacks` | 1 | A suit path may add a weapon-only pack. |
+| `RigColours` | 0 | Experimental: the RIG bars of the DLC and DLC style suits in a colour per style. The first start after a change writes recoloured copies (`<suit>_rig.str`). |
+| `RigColour_<style>` | see INI | `R,G,B` (0 to 255) or `off` for Scorpion, Obsidian, Unitology, Elite, Astronaut and Military. Red and yellow at low health stay. |
 
 To uninstall, see [Uninstall and saves](#uninstall-and-saves) first.
 
@@ -263,6 +277,8 @@ needs the Ultimate ASI Loader's `winmm.dll` in `release/`, which is not part
 of the repository.
 
 ## Credits
+
+Created by [Richard Hafer](https://github.com/RichardHafer).
 
 - [safetyhook](https://github.com/cursey/safetyhook) and [Zydis](https://github.com/zyantific/zydis) for hooking
 - [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader) by ThirteenAG for loading the plugin

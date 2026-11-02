@@ -115,7 +115,8 @@ def edge_wear(normal_img, size, rgb_in):
     edges = np.clip((tilt - 0.25) * 3, 0, 1)
     edges = np.asarray(Image.fromarray((edges * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2)),
                        dtype=np.float64) / 255
-    light = rgb_in.mean(-1) / 255
+    # brightness against the suit's own, so dark originals wear like bright ones
+    light = rgb_in.mean(-1) / max(np.percentile(rgb_in.mean(-1), 75), 1) * 0.6
     grime = np.asarray(Image.fromarray(rgb_in.astype(np.uint8)).convert("L").filter(ImageFilter.FIND_EDGES),
                        dtype=np.float64) / 255
     return np.clip(edges * np.clip(light * 1.6, 0, 1) * (0.55 + grime * 2), 0, 1)
@@ -377,6 +378,16 @@ CLEAN_STYLES = {"elite", "obsidian", "unitology", "military"}
 PLATE_BRIGHTNESS = {"unitology": 115}
 # styles whose paint carries lettering; it is cut from the DLC suit and laid on the target's paint
 DECAL_STYLES = set()   # the Unitology lettering is hand-painted per plate and does not carry over
+# share of worn gold on the paint: the retail Scorpion suit has 0.047 (soft gold measure over its red and gold);
+# every level gets the same, whatever the brightness of its original, 20 % less than retail (2026-11-02)
+GOLD_SHARE = 0.047 * 0.8
+# paint share above which a UV island is painted whole, below which it stays bare (island_paint)
+ISLAND_FULL, ISLAND_BARE = 0.45, 0.15
+# paint blobs smaller than this (texels) count as flecks on a bare island
+ISLAND_FLECK = 200
+# the style's shine on its paint against the retail suit's; the Obsidian gloss was too strong on the level suits
+# (2026-11-02)
+SPEC_SCALE = {"obsidian": 0.7}
 DECAL_TILE = 96
 _decal_cache = {}
 
@@ -406,6 +417,89 @@ def decal_tiles(style):
     tiles.sort(key=lambda r: -r[0])
     _decal_cache[style] = [r[1:] for r in tiles[:120]]
     return _decal_cache[style]
+
+
+def geometric_edges(target, name, shape):
+    """(distance in texels to the nearest real edge of the model, covered texels). Real edges are the open rims of
+    the model's parts and creases sharper than 35 degrees, drawn as lines into the texture from the meshes; a UV
+    seam across a smooth plate is none (gold on those sat in the middle of plates, 2026-11-02)."""
+    import zlib
+    from PIL import ImageDraw
+    from scipy import ndimage
+    import ds1_suit_emblem
+    members = b.read_archive(b.WORK / "pc" / target)
+    crcs = {zlib.crc32(name[:-2].encode()) & 0xFFFFFFFF}
+    for m in members:
+        if m.attrs["type_name"] == "Material" and name in b.material_samplers(m.data()).values():
+            crcs.add(b.crc_lower(b.short_name(m.data())))
+    h, w = shape
+    lines = Image.new("L", (w, h), 0)
+    draw = ImageDraw.Draw(lines)
+    crease = np.cos(np.radians(35))
+    for m in members:
+        if m.attrs["type_name"] != "Mesh" or "hit" in m.attrs["base_name"]:
+            continue
+        for sub in ds1_suit_emblem.read_mesh(m.data())["subs"]:
+            if sub["crc"] not in crcs or not len(sub["tris"]):
+                continue
+            pos, uv = np.asarray(sub["pos"], np.float64), np.asarray(sub["uv"], np.float64)
+            tris = np.asarray(sub["tris"], np.int64)
+            # vertices split at UV seams share their position
+            _, weld = np.unique(np.round(pos / 1e-4).astype(np.int64), axis=0, return_inverse=True)
+            weld = weld.ravel()
+            face = np.cross(pos[tris[:, 1]] - pos[tris[:, 0]], pos[tris[:, 2]] - pos[tris[:, 0]])
+            face /= np.maximum(np.linalg.norm(face, axis=1, keepdims=True), 1e-12)
+            edges = {}
+            for t, tri in enumerate(tris):
+                for i, j in ((0, 1), (1, 2), (2, 0)):
+                    key = tuple(sorted((weld[tri[i]], weld[tri[j]])))
+                    edges.setdefault(key, []).append((t, tri[i], tri[j]))
+            for sides in edges.values():
+                if len(sides) == 2 and face[sides[0][0]] @ face[sides[1][0]] > crease:
+                    continue
+                for t, vi, vj in sides:
+                    # the legs sit in a tile next to the texture; the sampler wraps
+                    shift = np.floor(uv[tris[t]].mean(0))
+                    p0, p1 = (uv[vi] - shift) * (w, h), (uv[vj] - shift) * (w, h)
+                    draw.line([tuple(p0), tuple(p1)], fill=255, width=1)
+    covered = ds1_suit_emblem.surface(target, name, shape)["covered"]
+    seeds = np.asarray(lines) > 0
+    return ndimage.distance_transform_edt(~seeds), covered
+
+
+def island_paint(mask, target, name, rgb):
+    """The paint decided per part of the model: a UV island the paint mostly covers is painted whole (bare metal
+    stripes and worn spots on a plate), one with only a few chips loses its flecks (copper on cloth). Islands in
+    between, where plate and cloth share a piece, keep the colour mask. Lights and visor glass stay out (level 4
+    Astronaut, 2026-11-02)."""
+    from scipy import ndimage
+    import ds1_suit_emblem
+    if "cap" in name:
+        # the cap maps mix the flesh of the dismemberment caps with painted rims on one island; left bare, the
+        # rims kept the original copper (level 2 Scorpion hip, 2026-11-02)
+        return mask
+    m = mask[..., 0]
+    surf = ds1_suit_emblem.surface(target, name, m.shape)
+    islands, count = ndimage.label(surf["covered"], structure=np.ones((3, 3)))
+    if not count:
+        return mask
+    sizes = np.bincount(islands.ravel(), minlength=count + 1)
+    painted = np.bincount(islands.ravel(), weights=(m > 0.5).ravel(), minlength=count + 1)
+    share = painted / np.maximum(sizes, 1)
+    full, bare = share > ISLAND_FULL, share < ISLAND_BARE
+    full[0] = bare[0] = False
+    out = m.copy()
+    out[full[islands] & ~(cyan_mask(rgb) | green_lens_mask(rgb))] = 1.0
+    # on mostly bare islands only the flecks go: a painted holster or patch on a cloth piece is one solid blob
+    # and stays (level 2 Scorpion hip, 2026-11-02)
+    flecks, flecks_count = ndimage.label((m > 0.5) & bare[islands])
+    if flecks_count:
+        fleck_size = np.bincount(flecks.ravel())
+        small = fleck_size < ISLAND_FLECK
+        small[0] = False
+        out[small[flecks]] = 0.0
+    print("%s islands: %d painted whole, %d left bare of %d" % (name, int(full.sum()), int(bare.sum()), count))
+    return out[..., None]
 
 
 def apply_decals(style, out, mask, name, width):
@@ -577,6 +671,7 @@ def stylize(style, target, out_dir):
             mask = mask[..., None]
         else:
             mask = np.maximum(raw_mask, close_mask(raw_mask) * (rgb.mean(-1) > 35))[..., None]
+        mask = island_paint(mask, target, name, rgb)
         luma = rgb @ np.array([0.299, 0.587, 0.114])
         # brightness quantile of the original paint -> the same quantile of the style's paint
         blur = np.asarray(Image.fromarray(luma.astype(np.uint8)).filter(ImageFilter.GaussianBlur(3)),
@@ -619,15 +714,35 @@ def stylize(style, target, out_dir):
             painted = np.repeat((painted @ np.array([0.299, 0.587, 0.114]))[..., None], 3, -1)
         normal = own.get(name[:-2] + "_n")
         if wear_colour is not None:
-            # worn gold at the plate borders, broken up by noise
-            band = plate_edges(raw_mask)[..., None]
+            # worn gold on the model's real edges: the borders of its parts (UV islands) and hard creases, broken
+            # up by noise; the band widens until the gold share matches the retail suit. Relief edges of the normal
+            # map put specks in the middle of plates (2026-11-02); without mesh data the old plate border band.
             broken = np.clip((noise(rgb.shape[:2], sum(name.encode())) - 0.35) * 4, 0, 1)[..., None]
-            gold = band * broken * (0.35 if tidy else 0.7)   # level 4 has many small plates: less gold
+            on_paint = mask[..., 0] > 0.5
+            dist, covered = geometric_edges(target, name, rgb.shape[:2])
+            if covered.any():
+                for width in (1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0):
+                    gold = (np.clip(1 - dist / width, 0, 1) * covered)[..., None] * broken * 0.8 * mask
+                    share = gold[..., 0][on_paint].mean() if on_paint.any() else 0.0
+                    if share >= GOLD_SHARE:
+                        break
+                if share > GOLD_SHARE * 1.1:
+                    # many small parts: even the thinnest band is too much, so whole stretches of edge stay red
+                    keep = noise(rgb.shape[:2], sum(name.encode()) * 7 + 1)[..., None]
+                    lo, hi = 0.0, 1.0
+                    for _ in range(14):
+                        cut = (lo + hi) / 2
+                        trial = gold * (keep > cut)
+                        if trial[..., 0][on_paint].mean() > GOLD_SHARE:
+                            lo = cut
+                        else:
+                            hi = cut
+                    gold = gold * (keep > hi)
+                    share = gold[..., 0][on_paint].mean()
+                print("%s gold on the model's edges, band %.1f px, share %.3f" % (name, width, share))
+            else:
+                gold = plate_edges(raw_mask)[..., None] * broken * (0.35 if tidy else 0.7)
             painted = painted * (1 - gold) + wear_colour * (0.75 + 0.25 * detail) * gold
-        if normal and wear_colour is not None and not tidy:
-            wear = edge_wear(image(normal), src.size, rgb)[..., None] * mask
-            wear = np.where(wear > 0.35, wear, 0) * 0.7
-            painted = painted * (1 - wear) + wear_colour * wear
         # the cyan visor of the original takes the style's visor colour
         out = rgb * (1 - mask) + painted * mask
         if clean:
@@ -639,6 +754,13 @@ def stylize(style, target, out_dir):
         decals = 0
         if style in DECAL_STYLES:
             decals = apply_decals(style, out, mask[..., 0], name, rgb.shape[1])
+        import ds1_suit_emblem
+        if style in ds1_suit_emblem.EMBLEMS and "helmet" in name:
+            retail = np.asarray(image(styled[ds1_suit_emblem.EMBLEMS[style][0]]).convert("RGB"))
+            emblem_report = []
+            decals += ds1_suit_emblem.paint(out, style, target, name, retail, where=mask[..., 0], report=emblem_report)
+            for line in emblem_report:
+                print(line)
         lens = cyan_mask(rgb)
         if style in CLEAN_STYLES and "helmet" not in name:
             # the cyan status lights on belt and pouches turn grey, they read as stray spots on a clean suit
@@ -649,10 +771,13 @@ def stylize(style, target, out_dir):
                 grey = (rgb[lights] @ np.array([0.299, 0.587, 0.114]))[:, None] * 0.55
                 out[lights] = grey
             lens[:] = False
-        elif style in CLEAN_STYLES and lens.any():
-            # the soft edge pixels of the visor glass too, or they glow cyan inside the visor
+        elif lens.any():
+            # the soft edge pixels of the visor glass too, or they glow cyan inside the visor; also the dull
+            # cyan-brown ones at the rim of the level 4 slits, which took the paint and showed as white streaks
+            # (Military level 4, 2026-11-02)
             from scipy import ndimage
-            lens = ndimage.binary_dilation(lens, iterations=1) & (hsv(rgb)[..., 1] > 40)
+            tint = (rgb[..., 1] + rgb[..., 2]) / 2 > rgb[..., 0] * 0.9
+            lens = ndimage.binary_dilation(lens, iterations=2) & ((hsv(rgb)[..., 1] > 40) | tint)
         if target in WHITE_PAINT and "helmet" in name:
             lens |= green_lens_mask(rgb)
         if visor is not None and lens.any():
@@ -705,7 +830,8 @@ def stylize(style, target, out_dir):
                 s_luma = s_rgb @ np.array([0.299, 0.587, 0.114])
                 ref = max(np.median(s_luma[m[..., 0] > 0.5]) if (m > 0.5).any() else 1, 1)
                 variation = np.clip(s_luma / ref, 0.6, 1.4)[..., None]
-                shine = spec * (0.92 + 0.08 * variation if clean else 0.75 + 0.25 * variation)
+                scale = SPEC_SCALE.get(style, 1.0)
+                shine = spec * (0.92 + 0.08 * variation if clean else 0.75 + 0.25 * variation) * scale
                 s_out = s_rgb * (1 - m) + shine * m
                 if clean:
                     s_out = s_out * m + np.repeat(s_luma[..., None], 3, -1) * (1 - m)
@@ -714,6 +840,30 @@ def stylize(style, target, out_dir):
                 s_img.save(out_dir / (spec_name + ".png"))
                 results[spec_name] = s_img
         print(name, src.size, "paint %.0f%%" % (mask.mean() * 100) + (", %d decals" % decals if decals else ""))
+    # glow maps (only the level 5 helmet has one): the cyan light takes the style's visor colour at its own
+    # brightness; the Military level 5 visor shone in the retail cyan (2026-11-02)
+    if visor is not None:
+        tint = np.asarray(visor, dtype=np.float64)
+        tint = tint / max(float(tint.max()), 1.0)
+        for name, pair in sorted(own.items()):
+            if not name.endswith("_l"):
+                continue
+            try:
+                src = image(pair)
+            except ValueError:
+                continue
+            rgb = np.asarray(src.convert("RGB"), dtype=np.float64)
+            h = hsv(rgb)
+            lit = (np.abs(h[..., 0] / 255 * 360 - 165) < 35) & (h[..., 1] > 40)
+            if not lit.any():
+                continue
+            out = rgb.copy()
+            out[lit] = tint * rgb[lit].max(-1, keepdims=True)
+            result = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).convert("RGBA")
+            result.putalpha(src.getchannel("A"))
+            result.save(out_dir / (name + ".png"))
+            results[name] = result
+            print(name, "glow map in the visor colour, %d texels" % int(lit.sum()))
     return results
 
 
