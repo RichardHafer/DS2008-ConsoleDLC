@@ -14,13 +14,13 @@ if not exist obj_dlc mkdir obj_dlc
 
 cl /nologo /c /O2 /EHsc /std:c++latest /MT /DNDEBUG /W4 /Iinclude ^
    src\dlc\ds2008_console_dlc.cpp include\safetyhook\safetyhook.cpp /Foobj_dlc\
-if errorlevel 1 goto fail
+if not "%ERRORLEVEL%"=="0" goto fail
 
 cl /nologo /c /O2 /MT /Iinclude include\safetyhook\Zydis.c /Foobj_dlc\
-if errorlevel 1 goto fail
+if not "%ERRORLEVEL%"=="0" goto fail
 
 link /nologo /DLL /OUT:DeadSpace2008Randomizer_ConsoleDLC.asi obj_dlc\*.obj kernel32.lib user32.lib shell32.lib
-if errorlevel 1 goto fail
+if not "%ERRORLEVEL%"=="0" goto fail
 
 echo Built DeadSpace2008Randomizer_ConsoleDLC.asi
 exit /b 0

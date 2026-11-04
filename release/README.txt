@@ -1,4 +1,4 @@
-Dead Space 2008 Randomizer: Console DLC 1.0.1
+Dead Space 2008 Randomizer: Console DLC 1.0.2
 Dead Space (2008), Steam version
 
 WHAT IT DOES
@@ -71,10 +71,10 @@ Send DeadSpace2008Randomizer_ConsoleDLC.log from the game folder (or
 DeadSpace2008Randomizer.log when the randomizer is installed) with a short
 description. A working start logs "suit slots: table extended from 30 to 64
 entries" and "console DLC: 72 of 72 line(s) installed"; with the randomizer
-also "extension: Dead Space 2008 Randomizer Console DLC 1.0.1 attached".
+also "extension: Dead Space 2008 Randomizer Console DLC 1.0.2 attached".
 
 VERSIONS
 
-Console DLC 1.0.1 works alone or with randomizer 1.0.2 or later.
+Console DLC 1.0.2 works alone or with randomizer 1.0.2 or later.
 
 Not affiliated with EA or Visceral Games. The DLC content belongs to EA.

@@ -236,6 +236,57 @@
         return true;
     }
 
+    // The shader identifies stasis by material-name CRC; renamed bars otherwise show health.
+    // At 0x0063C529, ecx holds that CRC. Substitute the retail CRC for our stasis materials.
+    constexpr uintptr_t kStatusBarStasisCompare = 0x0063C529;
+    constexpr uintptr_t kStasisBarNameCrc = 0x00F4ACF0;
+    constexpr unsigned char kStatusBarStasisCompareBytes[] = {0x3B, 0x0D, 0xF0, 0xAC, 0xF4, 0x00};
+    uint32_t gRigStasisCrcs[kConsoleDlcLineCount]{};
+    unsigned gRigStasisCrcCount = 0;
+    volatile LONG gRigStasisMapped = 0;
+    safetyhook::MidHook gStasisBarHook;
+
+    void StasisBarCompare_Hook(safetyhook::Context& ctx)
+    {
+        for (unsigned i = 0; i < gRigStasisCrcCount; ++i)
+        {
+            if (ctx.ecx != gRigStasisCrcs[i])
+                continue;
+            ctx.ecx = *reinterpret_cast<const uint32_t*>(kStasisBarNameCrc);
+            InterlockedIncrement(&gRigStasisMapped);
+            return;
+        }
+    }
+
+    // The name CRC RenameRigMaterial gives the stasis bar of this model's copy.
+    void NoteRigStasisBar(const char* model)
+    {
+        char name[32];
+        std::snprintf(name, sizeof(name), "rig%08Xx_stasisbar", RigCrcLower(model));
+        const uint32_t crc = RigCrcLower(name);
+        for (unsigned i = 0; i < gRigStasisCrcCount; ++i)
+            if (gRigStasisCrcs[i] == crc)
+                return;
+        if (gRigStasisCrcCount < kConsoleDlcLineCount)
+            gRigStasisCrcs[gRigStasisCrcCount++] = crc;
+    }
+
+    void InstallStasisBarHook()
+    {
+        if (!gRigStasisCrcCount)
+            return;
+        unsigned char code[sizeof(kStatusBarStasisCompareBytes)]{};
+        const bool same = ReadGame(kStatusBarStasisCompare, code, sizeof(code)) &&
+                          std::memcmp(code, kStatusBarStasisCompareBytes, sizeof(code)) == 0;
+        if (same)
+            gStasisBarHook = safetyhook::create_mid(reinterpret_cast<void*>(kStatusBarStasisCompare),
+                                                    &StasisBarCompare_Hook);
+        Log("RIG colour: stasis bar hook %s at %08X for %u recoloured suit(s)%s",
+            gStasisBarHook ? "active" : "NOT installed", static_cast<unsigned>(kStatusBarStasisCompare),
+            gRigStasisCrcCount,
+            gStasisBarHook ? "" : same ? " (hook failed)" : ", the bytes differ from the Steam build: their stasis bars show health");
+    }
+
     // <folder><model>_rig.str in this colour, written when its stamp does not match; false when it cannot be made.
     bool EnsureRigArchive(const char* model, const uint8_t rgb[3], const char* style)
     {
@@ -435,7 +486,10 @@
             const char* style = nullptr;
             if (gRigColours && !line.weapon && haveModel && RigColourFor(line.modelArchive, rgb, &style) &&
                 EnsureRigArchive(gConsoleDlcModel[i], rgb, style))
+            {
+                NoteRigStasisBar(gConsoleDlcModel[i]);
                 strncat_s(gConsoleDlcModel[i], "_rig", _TRUNCATE);
+            }
             // A suit fills table entry key - 1 unchecked; past the table it would overwrite the manager
             const bool fits = line.weapon || line.key <= gUniformSlotCount;
             gConsoleDlcPresent[i] = haveStore && haveModel && fits;
@@ -447,6 +501,7 @@
                 haveStore ? "model archive missing" : "store archive missing");
         }
         Log("console DLC: %u of %u line(s) installed in %s", present, kConsoleDlcLineCount, kConsoleDlcFolder);
+        InstallStasisBarHook();
         if (!present)
         {
             gConsoleDlc = false;
@@ -567,6 +622,12 @@
     {
         if (!gConsoleDlc || !gConsoleDlcDone)
             return;
+        static bool stasisReported = false;
+        if (!stasisReported && gStasisBarHook && InterlockedCompareExchange(&gRigStasisMapped, 0, 0) > 0)
+        {
+            stasisReported = true;
+            Log("RIG colour: a recoloured stasis bar drew with the stasis value");
+        }
         static ULONGLONG last = 0;
         const ULONGLONG now = GetTickCount64();
         if (now - last < 2000)

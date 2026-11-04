@@ -4,7 +4,7 @@ The zip holds the plugin and the DLC archives the plugin's table names, nothing 
 sit in the assets folder but which the table does not list (a suit built for yourself) stays out, with its text
 tables.
 
-usage: python -I tools/make_release.py ASSETS_DIR [--version 1.0.1]
+usage: python -I tools/make_release.py ASSETS_DIR [--version 1.0.2]
   ASSETS_DIR is the folder tools/ds1_dlc_build.py wrote (assets_dlc).
 """
 import argparse
@@ -78,7 +78,8 @@ def pick(assets):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("assets", type=Path)
-    p.add_argument("--version", default="1.0.1")
+    p.add_argument("--version", default="1.0.2")
+    p.add_argument("--out", type=Path)
     a = p.parse_args()
     if not PLUGIN.is_file():
         raise SystemExit("build the plugin first (build.bat)")
@@ -88,8 +89,8 @@ def main():
     if PLUGIN.stat().st_mtime < newest:
         raise SystemExit("%s is older than its sources; rebuild it" % PLUGIN.name)
     files, leg_lines, left_out = pick(a.assets)
-    out = ROOT / "dist" / ("DeadSpace2008Randomizer_ConsoleDLC_v%s.zip" % a.version)
-    out.parent.mkdir(exist_ok=True)
+    out = a.out or ROOT / "dist" / ("DeadSpace2008Randomizer_ConsoleDLC_v%s.zip" % a.version)
+    out.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(PLUGIN, "plugins/" + PLUGIN.name)
         z.write(README, "DeadSpace2008Randomizer_ConsoleDLC_README.txt")

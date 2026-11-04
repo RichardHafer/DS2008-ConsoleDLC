@@ -19,7 +19,7 @@
 namespace
 {
     // The randomizer logs this name when it attaches the plugin.
-    constexpr char kDlcName[] = "Dead Space 2008 Randomizer Console DLC 1.0.1";
+    constexpr char kDlcName[] = "Dead Space 2008 Randomizer Console DLC 1.0.2";
 
     const ds2008::HostApi* gHost = nullptr;
     char gIniPath[MAX_PATH]{};

@@ -73,6 +73,11 @@ randomizer installed, the randomizer does that.
 Every patch site is checked against the Steam bytes before it is placed, and
 the log says which ones went in.
 
+## Changes in 1.0.2
+
+Recoloured RIG stasis bars now display remaining stasis instead of health.
+Existing suit copies work with the fix. See [release notes](release/CHANGELOG.md).
+
 ## Install
 
 ### Windows
@@ -154,8 +159,8 @@ A working start has these lines:
 
 | Line | Meaning |
 |---|---|
-| `extension: Dead Space 2008 Randomizer Console DLC 1.0.1 attached` | The randomizer found the add-on (randomizer log). |
-| `Dead Space 2008 Randomizer Console DLC 1.0.1, standalone: ...` | Running without the randomizer (own log). |
+| `extension: Dead Space 2008 Randomizer Console DLC 1.0.2 attached` | The randomizer found the add-on (randomizer log). |
+| `Dead Space 2008 Randomizer Console DLC 1.0.2, standalone: ...` | Running without the randomizer (own log). |
 | `suit slots: table extended from 30 to 64 entries` | The larger suit table is in. |
 | `console DLC: 72 of 72 line(s) installed in ...` | Every pack archive was found. |
 | `console DLC: entry ...` | One line per suit or weapon registered with the game. |
@@ -206,6 +211,7 @@ The simplest way is to keep the add-on until the playthrough is finished.
 
 | Console DLC | Randomizer | |
 |---|---|---|
+| 1.0.2 | 1.0.2 or later, or none | Corrected stasis values on recoloured RIG bars. |
 | 1.0.1 | 1.0.2 or later, or none | Extension interface 3. Randomizer 1.0.0 could miss the add-on at start; 1.0.1 lacks the 1.0.2 fixes. |
 
 ---
@@ -269,7 +275,7 @@ PC game, Python 3 with numpy and Pillow, and Gibbed's Visceral tools
 ```bat
 set DEAD_SPACE_DIR=C:\Program Files (x86)\Steam\steamapps\common\Dead Space
 python -I tools\ds1_dlc_build.py
-python -I tools\make_release.py assets_dlc --version 1.0.1
+python -I tools\make_release.py assets_dlc --version 1.0.2
 ```
 
 `make_release.py` packs only the archives the plugin's table lists. It also
